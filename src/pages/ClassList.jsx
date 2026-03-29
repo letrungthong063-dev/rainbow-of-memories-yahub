@@ -49,9 +49,9 @@ export default function ClassList() {
                 <Link
                   key={student.id}
                   to={`/profile/${student.id}`}
-                  className="group bg-white rounded-xl border border-[#d8dcdf] shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
+                  className="group bg-white rounded-xl border border-[#d8dcdf] shadow-sm hover:shadow-md transition-all duration-300 flex flex-col"
                 >
-                  <div className="aspect-square overflow-hidden bg-[#f0f0f0]">
+                  <div className="aspect-square overflow-hidden rounded-t-xl bg-[#f0f0f0]">
                     {student.avatar_url ? (
                       <img
                         src={student.avatar_url}
@@ -77,4 +77,5 @@ export default function ClassList() {
       <Footer />
     </div>
   )
-}
+                    }
+                  
