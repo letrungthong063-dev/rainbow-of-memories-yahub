@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { formatDate } from '../../utils/formatDate'
+import { formatDate, formatDateTime } from '../../utils/formatDate'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
 
+// Hàm lấy token xác thực từ session hiện tại của Supabase
 async function getAuthToken() {
   const { data: { session } } = await supabase.auth.getSession()
   return session?.access_token || ''
@@ -22,8 +23,12 @@ export default function AdminUsers() {
 
   useEffect(() => { fetchUsers() }, [])
 
+  // Lấy danh sách người dùng từ bảng 'profiles'
   async function fetchUsers() {
-    const { data } = await supabase.from('profiles').select('*').order('full_name')
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('full_name')
     setUsers(data || [])
     setLoading(false)
   }
@@ -55,7 +60,7 @@ export default function AdminUsers() {
     setMsg('')
 
     if (editUser) {
-      // Update profile info
+      // Cập nhật thông tin profile
       const updates = {
         full_name: form.full_name,
         gender: form.gender,
@@ -65,7 +70,7 @@ export default function AdminUsers() {
       const { error } = await supabase.from('profiles').update(updates).eq('id', editUser.id)
       if (error) { setMsg('Lỗi cập nhật: ' + error.message); setSaving(false); return }
 
-      // Update password if provided
+      // Cập nhật mật khẩu nếu có nhập mới qua Edge Function
       if (form.password) {
         const token = await getAuthToken()
         const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-update-password`, {
@@ -82,7 +87,7 @@ export default function AdminUsers() {
       setMsg('✅ Cập nhật thành công!')
       fetchUsers()
     } else {
-      // Create new user via Supabase Auth Admin API (edge function)
+      // Tạo người dùng mới qua Supabase Auth Admin API (Edge Function)
       const token = await getAuthToken()
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-create-user`, {
         method: 'POST',
@@ -121,6 +126,7 @@ export default function AdminUsers() {
   return (
     <div className="flex flex-col gap-6">
       {confirm && <ConfirmDialog message={confirm.message} onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />}
+      
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-black text-[#121516]">Quản lý User</h2>
@@ -132,7 +138,7 @@ export default function AdminUsers() {
         </button>
       </div>
 
-      {/* Form */}
+      {/* Form tạo mới/chỉnh sửa */}
       {showForm && (
         <div className="bg-white rounded-xl border border-[#d8dcdf] shadow-sm p-6">
           <h3 className="font-bold text-[#121516] mb-4">{editUser ? `Chỉnh sửa: ${editUser.full_name}` : 'Tạo tài khoản mới'}</h3>
@@ -143,12 +149,10 @@ export default function AdminUsers() {
           )}
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {!editUser && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-[#67747e] uppercase">Email *</label>
-                  <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required className="border border-[#d8dcdf] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary" />
-                </div>
-              </>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-[#67747e] uppercase">Email *</label>
+                <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required className="border border-[#d8dcdf] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+              </div>
             )}
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-[#67747e] uppercase">{editUser ? 'Mật khẩu mới (bỏ trống nếu không đổi)' : 'Mật khẩu *'}</label>
@@ -183,7 +187,7 @@ export default function AdminUsers() {
         </div>
       )}
 
-      {/* User List */}
+      {/* Danh sách User */}
       <div className="bg-white rounded-xl border border-[#d8dcdf] shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-6 text-center text-[#67747e]">Đang tải...</div>
@@ -196,6 +200,7 @@ export default function AdminUsers() {
                 <th className="text-left px-4 py-3 font-bold text-[#67747e] text-xs uppercase">Thành viên</th>
                 <th className="text-left px-4 py-3 font-bold text-[#67747e] text-xs uppercase hidden md:table-cell">Ngày sinh</th>
                 <th className="text-left px-4 py-3 font-bold text-[#67747e] text-xs uppercase hidden md:table-cell">Chức vụ</th>
+                <th className="text-left px-4 py-3 font-bold text-[#67747e] text-xs uppercase hidden lg:table-cell">Đăng nhập gần nhất</th>
                 <th className="text-left px-4 py-3 font-bold text-[#67747e] text-xs uppercase">Role</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -217,6 +222,9 @@ export default function AdminUsers() {
                   </td>
                   <td className="px-4 py-3 text-[#67747e] hidden md:table-cell">{formatDate(user.birthday) || '—'}</td>
                   <td className="px-4 py-3 text-[#67747e] hidden md:table-cell">{user.class_role || '—'}</td>
+                  <td className="px-4 py-3 text-[#67747e] hidden lg:table-cell text-xs">
+                    {user.last_sign_in_at ? formatDateTime(user.last_sign_in_at) : '—'}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${user.role === 'admin' ? 'bg-accent-red/10 text-accent-red' : 'bg-primary/10 text-primary'}`}>
                       {user.role || 'user'}
